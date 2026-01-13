@@ -1,0 +1,43 @@
+name: Build i386 Linux deb
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build inside i386 container
+        uses: addnab/docker-run-action@v3
+        with:
+          image: i386/ubuntu:20.04
+          options: --privileged
+          run: |
+            apt update
+            apt install -y curl git build-essential \
+              libgtk-3-dev \
+              libwebkit2gtk-4.0-dev \
+              pkg-config \
+              nodejs npm
+
+            curl https://sh.rustup.rs -sSf | sh -s -- -y
+            export PATH=$HOME/.cargo/bin:$PATH
+            rustup target add i686-unknown-linux-gnu
+
+            npm install
+            npm run build
+
+            cargo install tauri-cli
+            cargo tauri build --target i686-unknown-linux-gnu
+
+            mkdir /out
+            cp src-tauri/target/i686-unknown-linux-gnu/release/bundle/deb/*.deb /out/
+
+      - name: Upload deb
+        uses: actions/upload-artifact@v4
+        with:
+          name: clash-verge-rev-i386
+          path: /out/*.deb
